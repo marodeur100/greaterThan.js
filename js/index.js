@@ -155,6 +155,7 @@ function findMaxArea (contours, minSize){
 function drawGreaterThan(contour, x1, y1, x2, y2, img) {
     var greaterThanFound = false;
     var img_orig = img.clone();
+    let lineColor = new cv.Scalar(0, 255, 0);
     if (contour) {
         let tmp = new cv.Mat();
         let defect = new cv.Mat();
@@ -189,19 +190,19 @@ function drawGreaterThan(contour, x1, y1, x2, y2, img) {
             
             if (cnt==1) {
                 if ((far_c.x>start_c.x) && (far_c.y>start_c.y) && (far_c.y<end_c.y) ) {
-                    img = img_orig;
-                    let lineColor = new cv.Scalar(0, 255, 0);
+                    img = img_orig.clone();
                     cv.line(img, new cv.Point(start_c.x, end_c.y), new cv.Point(far_c.x, start_c.y+((end_c.y-start_c.y)/2)), lineColor, 4, cv.LINE_AA, 0);
                     cv.line(img, start_c, new cv.Point(far_c.x, start_c.y+((end_c.y-start_c.y)/2)), lineColor, 4, cv.LINE_AA, 0);
                     cv.putText(img, 'IES ASG rocks!', new cv.Point(start_c.x, (start_c.y - 10)), cv.FONT_HERSHEY_PLAIN, 1, lineColor, 2);
-                    cv.imshow('canvas2', img);
-                    img.delete();
                     greaterThanFound = true;
                 }
             }
 
         }
     }
+    cv.imshow('canvas2', img);
+    img.delete();
+    img_orig.delete();
     return greaterThanFound;
 }
 
