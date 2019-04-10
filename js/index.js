@@ -9,8 +9,6 @@ let trackButton = document.getElementById("trackbutton");
 let updateNote = document.getElementById("updatenote");
 var vc = new cv.VideoCapture(video);
 
-var HT = HT || {};
-
 let imgindex = 1
 let isVideo = false;
 let model = null;
@@ -56,27 +54,37 @@ trackButton.addEventListener("click", function(){
 
 function runDetection() {
 
+
     model.detect(video).then(predictions => {
         greaterThanFound = false;
-        // console.log("Predictions: ", predictions);
-        if (!greaterThanFound) {
-            model.renderPredictions(predictions, canvas, context, video);
-        }
+
+        // show video
+        context2.drawImage(video,0,0,video.width,video.height);
+        var img = cv.matFromImageData(context2.getImageData(0,0,video.width,video.height));
+        cv.flip(img, img, 1);
+        cv.imshow('canvas2', img);
 
         // find contour
         for(i=0;i<predictions.length;i++ ) {
-            var imgGrabbed;
             x1 = predictions[i].bbox[0];
             y1 = predictions[i].bbox[1];
             x2 = predictions[i].bbox[2];
             y2 = predictions[i].bbox[3];
 
+            //let dsize = new cv.Size(video.width, video.height);
+            //cv.resize(img, img, dsize, 0, 0, cv.INTER_AREA);
+
             // get sub image from canvas
-            var imgData = context.getImageData(x1, y1, x2, y2);
+            imgData = context2.getImageData(x1, y1, x2, y2);
             // find biggest contour
             contour = this.detectFingers(cv.matFromImageData(imgData), x1, y1, x2, y2);
             // render greater than
-            greaterThanFound = drawGreaterThan(contour, x1, y1, x2, y2, cv.matFromImageData(context.getImageData(0,0,canvas.width,canvas.height)))
+            greaterThanFound = drawGreaterThan(contour, x1, y1, x2, y2, img)
+
+            // console.log("Predictions: ", predictions);
+            if (!greaterThanFound) {
+                model.renderPredictions(predictions, canvas2, context2, video);
+            }
         }
 
         if (isVideo) {
@@ -144,16 +152,15 @@ function findMaxArea (contours, minSize){
   };
 
 
-function drawGreaterThan(contour, x1, y1, x2, y2, dst) {
-    let greaterThanFound = false;
+function drawGreaterThan(contour, x1, y1, x2, y2, img) {
+    var greaterThanFound = false;
+    var img_orig = img.clone();
     if (contour) {
         let tmp = new cv.Mat();
-        let hull = new cv.MatVector();
         let defect = new cv.Mat();
         cv.convexHull(contour, tmp, false, false);
         cv.convexityDefects(contour, tmp, defect);
         // console.log("Defects: ", defect);
-        var middle_tip = new cv.Point(0,0), edge= new cv.Point(0,0), pointer_tip= new cv.Point(0,0), textStart= new cv.Point(0,0);
         var end_c= new cv.Point(0,0), start_c= new cv.Point(0,0), far_c= new cv.Point(0,0);
         let cnt = 0;
         if (defect) {
@@ -168,6 +175,8 @@ function drawGreaterThan(contour, x1, y1, x2, y2, dst) {
                 let b = Math.sqrt(((far.x - start.x) ** 2) + ((far.y - start.y) ** 2));
                 let c = Math.sqrt(((end.x - far.x) ** 2) + ((end.y - far.y) ** 2));
                 angle = Math.acos((b ** 2 + c ** 2 - a ** 2) / (2 * b * c));
+                cv.line(img, start, far, lineColor, 4, cv.LINE_AA, 0);
+                cv.line(img, far, end, lineColor, 4, cv.LINE_AA, 0);
                 // angle less than 90 degree, treat as fingers
                 if (angle <= (Math.PI / 2)) { 
                     cnt++;
@@ -180,19 +189,14 @@ function drawGreaterThan(contour, x1, y1, x2, y2, dst) {
             
             if (cnt==1) {
                 if ((far_c.x>start_c.x) && (far_c.y>start_c.y) && (far_c.y<end_c.y) ) {
-
-                    context2.drawImage(video,0,0,video.width,video.height);
-                    img = cv.matFromImageData(context2.getImageData(0,0,video.width,video.height));
-                    cv.flip(img, img, 1);
-                    let dsize = new cv.Size(canvas.width, canvas.height);
-                    cv.resize(img, img, dsize, 0, 0, cv.INTER_AREA);
-
+                    img = img_orig;
                     let lineColor = new cv.Scalar(0, 255, 0);
                     cv.line(img, new cv.Point(start_c.x, end_c.y), new cv.Point(far_c.x, start_c.y+((end_c.y-start_c.y)/2)), lineColor, 4, cv.LINE_AA, 0);
                     cv.line(img, start_c, new cv.Point(far_c.x, start_c.y+((end_c.y-start_c.y)/2)), lineColor, 4, cv.LINE_AA, 0);
                     cv.putText(img, 'IES ASG rocks!', new cv.Point(start_c.x, (start_c.y - 10)), cv.FONT_HERSHEY_PLAIN, 1, lineColor, 2);
                     cv.imshow('canvas2', img);
                     img.delete();
+                    greaterThanFound = true;
                 }
             }
 
